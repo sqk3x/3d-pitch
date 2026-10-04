@@ -211,6 +211,11 @@ const canvas = document.getElementById("canvas");
 
 console.log("THREE読み込み成功");
 
+document.body.insertAdjacentHTML(
+  "afterbegin",
+  '<div style="position:fixed;z-index:99999;top:0;left:0;background:red;color:white;padding:20px;font-size:20px">JS動いてる！</div>'
+);
+
 const scene = new THREE.Scene();
 
 scene.background = new THREE.Color(0x081018);
