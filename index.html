@@ -2,168 +2,1325 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>3D Pitch Simulator</title>
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>3D Baseball Pitch Simulator</title>
+
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#101318;color:white;font-family:system-ui,sans-serif}
-h1{text-align:center;font-size:22px;margin:15px}
-.panel{padding:12px}
-label{display:block;margin:12px 0 4px}
-input{width:100%}
-.value{text-align:right;color:#7dd3fc}
-button{width:100%;padding:14px;margin-top:15px;border:0;border-radius:10px;
-background:#2563eb;color:white;font-size:18px}
-canvas{display:block;width:100%;height:55vh;background:#05070a;
-border-radius:14px;margin-top:10px;touch-action:none}
+*{
+  box-sizing:border-box;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#081018;
+  color:white;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+#app{
+  width:100%;
+  height:100%;
+  position:relative;
+}
+
+#canvas{
+  position:absolute;
+  inset:0;
+}
+
+#ui{
+  position:absolute;
+  left:10px;
+  top:10px;
+  width:min(330px,calc(100% - 20px));
+  max-height:calc(100% - 20px);
+  overflow-y:auto;
+  padding:14px;
+  border-radius:16px;
+  background:rgba(5,10,16,.86);
+  backdrop-filter:blur(12px);
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+}
+
+h1{
+  margin:0 0 10px;
+  font-size:21px;
+}
+
+h2{
+  font-size:14px;
+  margin:14px 0 6px;
+  opacity:.75;
+}
+
+.row{
+  margin:9px 0;
+}
+
+.row label{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  margin-bottom:4px;
+}
+
+.value{
+  color:#6ee7ff;
+  font-weight:bold;
+}
+
+input[type=range]{
+  width:100%;
+}
+
+button{
+  width:100%;
+  border:0;
+  border-radius:11px;
+  padding:13px;
+  margin-top:8px;
+  font-size:17px;
+  font-weight:bold;
+  color:white;
+  background:#2563eb;
+}
+
+button:active{
+  transform:scale(.98);
+}
+
+#reset{
+  background:#334155;
+}
+
+.info{
+  margin-top:10px;
+  padding:9px;
+  border-radius:9px;
+  background:rgba(255,255,255,.06);
+  font-size:12px;
+  line-height:1.6;
+}
+
+#hint{
+  position:absolute;
+  right:12px;
+  bottom:12px;
+  padding:8px 11px;
+  border-radius:10px;
+  background:rgba(0,0,0,.5);
+  font-size:12px;
+  pointer-events:none;
+}
 </style>
 </head>
+
 <body>
+
+<div id="app">
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
 
 <h1>⚾ 3D Pitch Simulator</h1>
 
-<div class="panel">
-<label>球速 <span class="value" id="v">150</span> km/h</label>
-<input id="vel" type="range" min="80" max="180" value="150">
+<h2>投球</h2>
 
-<label>回転数 <span class="value" id="r">2500</span> rpm</label>
-<input id="rpm" type="range" min="0" max="3500" value="2500">
-
-<label>回転軸 X <span class="value" id="x">0</span>°</label>
-<input id="ax" type="range" min="-180" max="180" value="0">
-
-<label>回転軸 Y <span class="value" id="y">0</span>°</label>
-<input id="ay" type="range" min="-180" max="180" value="0">
-
-<label>回転軸 Z <span class="value" id="z">90</span>°</label>
-<input id="az" type="range" min="-180" max="180" value="90">
-
-<button onclick="throwBall()">⚾ 投げる</button>
-
-<canvas id="c"></canvas>
+<div class="row">
+<label>
+球速
+<span class="value" id="speedValue">150 km/h</span>
+</label>
+<input id="speed" type="range" min="100" max="170" value="150">
 </div>
 
-<script>
-const c=document.getElementById("c");
-const ctx=c.getContext("2d");
+<div class="row">
+<label>
+回転数
+<span class="value" id="rpmValue">2500 rpm</span>
+</label>
+<input id="rpm" type="range" min="0" max="3500" value="2500">
+</div>
 
-let ball={x:0,y:0,z:0};
-let trail=[];
-let running=false;
+<h2>回転軸</h2>
 
-function resize(){
- c.width=c.clientWidth*devicePixelRatio;
- c.height=c.clientHeight*devicePixelRatio;
- ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-}
-resize();
-addEventListener("resize",resize);
+<div class="row">
+<label>
+左右
+<span class="value" id="axisXValue">0°</span>
+</label>
+<input id="axisX" type="range" min="-180" max="180" value="0">
+</div>
 
-for(const id of ["vel","rpm","ax","ay","az"]){
- const e=document.getElementById(id);
- const out=document.getElementById(
-   id==="vel"?"v":id==="rpm"?"r":id==="ax"?"x":id==="ay"?"y":"z"
- );
- e.oninput=()=>out.textContent=e.value;
-}
+<div class="row">
+<label>
+上下
+<span class="value" id="axisYValue">0°</span>
+</label>
+<input id="axisY" type="range" min="-90" max="90" value="0">
+</div>
 
-function project(x,y,z){
- const scale=260/(z+5);
- return {
-  x:c.clientWidth/2+x*scale,
-  y:c.clientHeight/2-y*scale
- };
-}
+<h2>物理演算</h2>
 
-function draw(){
- ctx.clearRect(0,0,c.clientWidth,c.clientHeight);
+<div class="row">
+<label>
+マグヌス係数
+<span class="value" id="magnusValue">1.00</span>
+</label>
+<input id="magnus" type="range" min="0" max="2" step="0.01" value="1">
+</div>
 
- // strike zone
- ctx.strokeStyle="#555";
- ctx.strokeRect(
-   c.clientWidth/2-55,
-   c.clientHeight/2-90,
-   110,180
- );
+<button id="throw">⚾ 投げる</button>
+<button id="reset">🔄 リセット</button>
 
- // pitcher / catcher direction
- ctx.strokeStyle="#333";
- ctx.beginPath();
- ctx.moveTo(c.clientWidth/2,20);
- ctx.lineTo(c.clientWidth/2,c.clientHeight-20);
- ctx.stroke();
+<div class="info">
+<b>操作</b><br>
+画面をドラッグ → カメラ回転<br>
+ピンチ → ズーム<br>
+投球中 → ボールが実際に回転<br>
+</div>
 
- // trajectory
- if(trail.length){
-  ctx.strokeStyle="#38bdf8";
-  ctx.lineWidth=3;
-  ctx.beginPath();
-  trail.forEach((p,i)=>{
-   const q=project(p.x,p.y,p.z);
-   i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);
+<div class="info" id="status">
+待機中
+</div>
+
+</div>
+
+<div id="hint">
+3Dカメラ：ドラッグ / ピンチ
+</div>
+
+</div>
+
+<script type="module">
+
+import * as THREE
+from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+import {OrbitControls}
+from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+
+/* =========================================================
+   基本設定
+========================================================= */
+
+const canvas = document.getElementById("canvas");
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x081018);
+
+
+/* =========================================================
+   カメラ
+========================================================= */
+
+const camera =
+  new THREE.PerspectiveCamera(
+    55,
+    innerWidth / innerHeight,
+    0.01,
+    200
+  );
+
+camera.position.set(
+  8,
+  4,
+  14
+);
+
+
+/* =========================================================
+   Renderer
+========================================================= */
+
+const renderer =
+  new THREE.WebGLRenderer({
+    canvas,
+    antialias:true
   });
-  ctx.stroke();
- }
 
- const p=project(ball.x,ball.y,ball.z);
+renderer.setPixelRatio(
+  Math.min(devicePixelRatio,2)
+);
 
- ctx.fillStyle="white";
- ctx.beginPath();
- ctx.arc(p.x,p.y,Math.max(5,13-ball.z/8),0,Math.PI*2);
- ctx.fill();
+renderer.setSize(
+  innerWidth,
+  innerHeight
+);
 
- // seam / rotation indicator
- const rpm=+document.getElementById("rpm").value;
- const ang=performance.now()/1000*rpm/60*Math.PI*2;
- ctx.strokeStyle="#222";
- ctx.lineWidth=2;
- ctx.beginPath();
- ctx.arc(p.x,p.y,Math.max(5,13-ball.z/8),
-   ang,ang+Math.PI*1.2);
- ctx.stroke();
+renderer.shadowMap.enabled = true;
 
- if(running) requestAnimationFrame(draw);
+
+/* =========================================================
+   カメラ操作
+========================================================= */
+
+const controls =
+  new OrbitControls(
+    camera,
+    renderer.domElement
+  );
+
+controls.enableDamping = true;
+
+controls.target.set(
+  0,
+  1,
+  9
+);
+
+controls.minDistance = 3;
+controls.maxDistance = 45;
+
+
+/* =========================================================
+   光
+========================================================= */
+
+const ambient =
+  new THREE.HemisphereLight(
+    0xffffff,
+    0x223344,
+    2
+  );
+
+scene.add(ambient);
+
+
+const light =
+  new THREE.DirectionalLight(
+    0xffffff,
+    3
+  );
+
+light.position.set(
+  8,
+  15,
+  8
+);
+
+light.castShadow = true;
+
+scene.add(light);
+
+
+/* =========================================================
+   フィールド
+========================================================= */
+
+const field =
+  new THREE.Mesh(
+    new THREE.PlaneGeometry(
+      35,
+      45
+    ),
+    new THREE.MeshStandardMaterial({
+      color:0x173b24
+    })
+  );
+
+field.rotation.x = -Math.PI / 2;
+
+field.position.y = 0;
+
+field.position.z = 9;
+
+field.receiveShadow = true;
+
+scene.add(field);
+
+
+/* =========================================================
+   マウンド
+========================================================= */
+
+const mound =
+  new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      1.5,
+      1.7,
+      .35,
+      48
+    ),
+    new THREE.MeshStandardMaterial({
+      color:0x76583f
+    })
+  );
+
+mound.position.set(
+  0,
+  .17,
+  17
+);
+
+scene.add(mound);
+
+
+/* =========================================================
+   ホームプレート
+========================================================= */
+
+const plate =
+  new THREE.Mesh(
+    new THREE.BoxGeometry(
+      0.9,
+      .05,
+      0.9
+    ),
+    new THREE.MeshStandardMaterial({
+      color:0xffffff
+    })
+  );
+
+plate.position.set(
+  0,
+  .025,
+  0
+);
+
+scene.add(plate);
+
+
+/* =========================================================
+   ストライクゾーン
+========================================================= */
+
+const zoneMaterial =
+  new THREE.LineBasicMaterial({
+    color:0x00aaff
+  });
+
+const zoneGeometry =
+  new THREE.BufferGeometry();
+
+const z = .0;
+const y1 = .55;
+const y2 = 1.35;
+const w = .85;
+
+const points = [
+  new THREE.Vector3(-w/2,y1,z),
+  new THREE.Vector3(w/2,y1,z),
+  new THREE.Vector3(w/2,y2,z),
+  new THREE.Vector3(-w/2,y2,z),
+  new THREE.Vector3(-w/2,y1,z)
+];
+
+zoneGeometry.setFromPoints(points);
+
+const zone =
+  new THREE.Line(
+    zoneGeometry,
+    zoneMaterial
+  );
+
+scene.add(zone);
+
+
+/* =========================================================
+   投手
+========================================================= */
+
+const pitcher =
+  new THREE.Group();
+
+pitcher.position.set(
+  0,
+  0,
+  17
+);
+
+scene.add(pitcher);
+
+
+/* =========================================================
+   投手マテリアル
+========================================================= */
+
+const skin =
+  new THREE.MeshStandardMaterial({
+    color:0xd99b73
+  });
+
+const uniform =
+  new THREE.MeshStandardMaterial({
+    color:0xe9edf2
+  });
+
+const pants =
+  new THREE.MeshStandardMaterial({
+    color:0x202b3a
+  });
+
+const gloveMaterial =
+  new THREE.MeshStandardMaterial({
+    color:0x51311f
+  });
+
+
+/* =========================================================
+   投手の部品
+========================================================= */
+
+const body =
+  new THREE.Mesh(
+    new THREE.CapsuleGeometry(
+      .42,
+      1.0,
+      8,
+      16
+    ),
+    uniform
+  );
+
+body.position.y = 1.25;
+
+body.castShadow = true;
+
+pitcher.add(body);
+
+
+const head =
+  new THREE.Mesh(
+    new THREE.SphereGeometry(
+      .28,
+      20,
+      20
+    ),
+    skin
+  );
+
+head.position.y = 2.25;
+
+head.castShadow = true;
+
+pitcher.add(head);
+
+
+/* =========================================================
+   手足生成
+========================================================= */
+
+function limb(
+  radius,
+  length,
+  material
+){
+
+  const mesh =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        radius,
+        radius * 1.05,
+        length,
+        12
+      ),
+      material
+    );
+
+  mesh.castShadow = true;
+
+  return mesh;
 }
+
+
+const upperArm =
+  limb(
+    .12,
+    .55,
+    uniform
+  );
+
+const foreArm =
+  limb(
+    .10,
+    .5,
+    skin
+  );
+
+const throwingHand =
+  new THREE.Mesh(
+    new THREE.SphereGeometry(
+      .13,
+      14,
+      14
+    ),
+    skin
+  );
+
+const glove =
+  new THREE.Mesh(
+    new THREE.SphereGeometry(
+      .18,
+      14,
+      14
+    ),
+    gloveMaterial
+  );
+
+pitcher.add(
+  upperArm,
+  foreArm,
+  throwingHand,
+  glove
+);
+
+
+/* =========================================================
+   脚
+========================================================= */
+
+const leg1 =
+  limb(
+    .14,
+    .9,
+    pants
+  );
+
+const leg2 =
+  limb(
+    .14,
+    .9,
+    pants
+  );
+
+pitcher.add(
+  leg1,
+  leg2
+);
+
+
+/* =========================================================
+   ボール
+========================================================= */
+
+const ballGroup =
+  new THREE.Group();
+
+const ball =
+  new THREE.Mesh(
+    new THREE.SphereGeometry(
+      .0366,
+      32,
+      32
+    ),
+    new THREE.MeshStandardMaterial({
+      color:0xffffff,
+      roughness:.65
+    })
+  );
+
+ball.castShadow = true;
+
+ballGroup.add(ball);
+
+
+/* =========================================================
+   野球ボールの縫い目
+========================================================= */
+
+const seamMaterial =
+  new THREE.MeshStandardMaterial({
+    color:0xb91c1c,
+    roughness:.7
+  });
+
+
+function makeSeam(){
+
+  const curvePoints = [];
+
+  const segments = 160;
+
+  for(let i=0;i<=segments;i++){
+
+    const t =
+      i / segments *
+      Math.PI * 2;
+
+    const x =
+      .0368 *
+      Math.sin(t);
+
+    const y =
+      .018 *
+      Math.sin(2*t);
+
+    const z =
+      .028 *
+      Math.cos(t);
+
+    curvePoints.push(
+      new THREE.Vector3(
+        x,
+        y,
+        z
+      )
+    );
+  }
+
+  const curve =
+    new THREE.CatmullRomCurve3(
+      curvePoints,
+      true
+    );
+const tube =
+    new THREE.TubeGeometry(
+      curve,
+      160,
+      .0018,
+      5,
+      true
+    );
+
+  return new THREE.Mesh(
+    tube,
+    seamMaterial
+  );
+}
+
+
+const seam1 = makeSeam();
+
+const seam2 = makeSeam();
+
+seam2.rotation.y = Math.PI;
+seam2.rotation.z = Math.PI / 2;
+
+ballGroup.add(
+  seam1,
+  seam2
+);
+
+ballGroup.visible = false;
+
+scene.add(ballGroup);
+
+
+/* =========================================================
+   軌道
+========================================================= */
+
+let trail = [];
+
+const trailMaterial =
+  new THREE.LineBasicMaterial({
+    color:0x29d3ff
+  });
+
+let trailLine = null;
+
+
+/* =========================================================
+   物理定数
+========================================================= */
+
+const GRAVITY = 9.81;
+
+const AIR_DENSITY = 1.225;
+
+const BALL_MASS = 0.145;
+
+const BALL_RADIUS = 0.0366;
+
+const BALL_AREA =
+  Math.PI *
+  BALL_RADIUS *
+  BALL_RADIUS;
+
+const DRAG_COEFFICIENT = .35;
+
+
+/* =========================================================
+   状態
+========================================================= */
+
+let flying = false;
+
+let lastTime = 0;
+
+let velocity =
+  new THREE.Vector3();
+
+let angularVelocity =
+  new THREE.Vector3();
+
+let ballPosition =
+  new THREE.Vector3();
+
+
+/* =========================================================
+   UI
+========================================================= */
+
+const speedInput =
+  document.getElementById("speed");
+
+const rpmInput =
+  document.getElementById("rpm");
+
+const axisXInput =
+  document.getElementById("axisX");
+
+const axisYInput =
+  document.getElementById("axisY");
+
+const magnusInput =
+  document.getElementById("magnus");
+
+
+function bindRange(
+  input,
+  output,
+  suffix=""
+){
+
+  input.addEventListener(
+    "input",
+    ()=>{
+      output.textContent =
+        input.value + suffix;
+    }
+  );
+}
+
+
+bindRange(
+  speedInput,
+  document.getElementById("speedValue"),
+  " km/h"
+);
+
+bindRange(
+  rpmInput,
+  document.getElementById("rpmValue"),
+  " rpm"
+);
+
+bindRange(
+  axisXInput,
+  document.getElementById("axisXValue"),
+  "°"
+);
+
+bindRange(
+  axisYInput,
+  document.getElementById("axisYValue"),
+  "°"
+);
+
+bindRange(
+  magnusInput,
+  document.getElementById("magnusValue")
+);
+
+
+/* =========================================================
+   回転軸
+========================================================= */
+
+function getSpinAxis(){
+
+  const yaw =
+    THREE.MathUtils.degToRad(
+      Number(axisXInput.value)
+    );
+
+  const pitch =
+    THREE.MathUtils.degToRad(
+      Number(axisYInput.value)
+    );
+
+  const axis =
+    new THREE.Vector3(
+      Math.sin(yaw) *
+      Math.cos(pitch),
+
+      Math.sin(pitch),
+
+      Math.cos(yaw) *
+      Math.cos(pitch)
+    );
+
+  return axis.normalize();
+}
+
+
+/* =========================================================
+   投手アニメーション
+========================================================= */
+
+function animatePitcher(time){
+
+  const t =
+    Math.min(time / .65,1);
+
+  const s =
+    Math.sin(
+      t * Math.PI
+    );
+
+
+  leg1.position.set(
+    -.22 + s*.12,
+    .65,
+    .05
+  );
+
+  leg2.position.set(
+    .22 - s*.16,
+    .65,
+    -.02
+  );
+
+  leg1.rotation.z = -.15;
+
+  leg2.rotation.z = .15;
+
+
+  upperArm.position.set(
+    .43,
+    1.7,
+    -.05
+  );
+
+  upperArm.rotation.z =
+    -1.1 + s*2.1;
+
+  foreArm.position.set(
+    .72,
+    1.48 + s*.25,
+    -.08
+  );
+
+  foreArm.rotation.z =
+    -1.0 + s*2.5;
+
+  throwingHand.position.set(
+    .95,
+    1.65 + s*.25,
+    -.12
+  );
+
+
+  glove.position.set(
+    -.48,
+    1.55,
+    -.02
+  );
+
+  glove.rotation.z =
+    .3 + s;
+
+
+  body.rotation.x =
+    -.18*s;
+
+  body.rotation.z =
+    -.18*s;
+
+}
+
+
+/* =========================================================
+   投球
+========================================================= */
 
 function throwBall(){
- if(running)return;
- running=true;
- ball={x:0,y:0,z:0};
- trail=[];
 
- const vel=+document.getElementById("vel").value;
- const rpm=+document.getElementById("rpm").value;
- const ax=+document.getElementById("ax").value*Math.PI/180;
- const ay=+document.getElementById("ay").value*Math.PI/180;
- const az=+document.getElementById("az").value*Math.PI/180;
+  if(flying) return;
 
- let t=0;
- const speed=vel/150;
- const interval=setInterval(()=>{
-   t+=0.025;
+  flying = true;
 
-   // 0 → 18m
-   ball.z=t*18*speed;
+  trail = [];
 
-   // simplified Magnus effect
-   const magnus=rpm/2500*0.018;
+  if(trailLine){
 
-   ball.x=Math.sin(ay)*magnus*ball.z*ball.z;
-   ball.y=Math.sin(ax)*magnus*ball.z*ball.z
-        +Math.cos(az)*magnus*ball.z*0.35;
+    scene.remove(
+      trailLine
+    );
 
-   trail.push({...ball});
+    trailLine = null;
+  }
 
-   if(ball.z>=18){
-     clearInterval(interval);
-     running=false;
-   }
- },25);
 
- draw();
+  const speedKmh =
+    Number(speedInput.value);
+
+  const speed =
+    speedKmh / 3.6;
+
+  const rpm =
+    Number(rpmInput.value);
+
+  const axis =
+    getSpinAxis();
+
+
+  ballPosition.set(
+    0,
+    1.75,
+    18.44
+  );
+
+
+  velocity.set(
+    0,
+    0,
+    -speed
+  );
+
+
+  angularVelocity.copy(axis)
+    .multiplyScalar(
+      rpm *
+      2 *
+      Math.PI /
+      60
+    );
+
+
+  ballGroup.position.copy(
+    ballPosition
+  );
+
+  ballGroup.visible = true;
+
+  lastTime =
+    performance.now();
+
+
+  document.getElementById(
+    "status"
+  ).textContent =
+    "投球中…";
+
+
+  animatePitcher(0);
 }
 
-draw();
+
+/* =========================================================
+   物理演算
+========================================================= */
+
+function physicsStep(dt){
+
+  const v =
+    velocity.length();
+
+
+  if(v < .01){
+
+    flying = false;
+
+    return;
+  }
+
+
+  const gravity =
+    new THREE.Vector3(
+      0,
+      -GRAVITY,
+      0
+    );
+
+
+  const drag =
+    velocity.clone()
+      .normalize()
+      .multiplyScalar(
+        -.5 *
+        AIR_DENSITY *
+        DRAG_COEFFICIENT *
+        BALL_AREA *
+        v *
+        v /
+        BALL_MASS
+      );
+
+
+  const spinParameter =
+    BALL_RADIUS *
+    angularVelocity.length() /
+    Math.max(v,.01);
+
+
+  let Cl =
+    1.6 *
+    spinParameter /
+    (.6 + spinParameter);
+
+
+  Cl =
+    Math.min(
+      Cl,
+      .6
+    );
+
+
+  const magnusDirection =
+    new THREE.Vector3()
+      .crossVectors(
+        angularVelocity,
+        velocity
+      );
+
+
+  if(
+    magnusDirection.lengthSq() > 0
+  ){
+
+    magnusDirection.normalize();
+
+  }
+
+
+  const magnus =
+    magnusDirection.multiplyScalar(
+      .5 *
+      AIR_DENSITY *
+      BALL_AREA *
+      Cl *
+      v *
+      v /
+      BALL_MASS *
+      Number(magnusInput.value)
+    );
+
+
+  const acceleration =
+    gravity
+      .clone()
+      .add(drag)
+      .add(magnus);
+
+
+  velocity.addScaledVector(
+    acceleration,
+    dt
+  );
+
+
+  ballPosition.addScaledVector(
+    velocity,
+    dt
+  );
+
+
+  const angle =
+    angularVelocity.length() *
+    dt;
+
+
+  if(angle > 0){
+
+    const q =
+      new THREE.Quaternion();
+
+    q.setFromAxisAngle(
+      angularVelocity
+        .clone()
+        .normalize(),
+      angle
+    );
+
+    ballGroup.quaternion
+      .premultiply(q);
+
+  }
+
+
+  ballGroup.position.copy(
+    ballPosition
+  );
+
+
+  trail.push(
+    ballPosition.clone()
+  );
+
+
+  if(ballPosition.z <= 0){
+
+    flying = false;
+
+    document.getElementById(
+      "status"
+    ).textContent =
+      "⚾ 捕手到達！";
+
+    drawTrail();
+
+  }
+
+}
+
+
+/* =========================================================
+   軌道
+========================================================= */
+
+function drawTrail(){
+
+  if(trail.length < 2)
+    return;
+
+
+  const geometry =
+    new THREE.BufferGeometry()
+      .setFromPoints(
+        trail
+      );
+
+
+  trailLine =
+    new THREE.Line(
+      geometry,
+      trailMaterial
+    );
+
+
+  scene.add(
+    trailLine
+  );
+
+}
+
+
+/* =========================================================
+   リセット
+========================================================= */
+
+function reset(){
+
+  flying = false;
+
+  ballGroup.visible = false;
+
+  trail = [];
+
+  if(trailLine){
+
+    scene.remove(
+      trailLine
+    );
+
+    trailLine = null;
+  }
+
+  document.getElementById(
+    "status"
+  ).textContent =
+    "待機中";
+
+  pitcher.rotation.set(
+    0,0,0
+  );
+
+}
+
+
+/* =========================================================
+   ボタン
+========================================================= */
+
+document
+  .getElementById("throw")
+  .addEventListener(
+    "click",
+    throwBall
+  );
+
+document
+  .getElementById("reset")
+  .addEventListener(
+    "click",
+    reset
+  );
+
+
+/* =========================================================
+   アニメーション
+========================================================= */
+
+function animate(){
+
+  requestAnimationFrame(
+    animate
+  );
+
+
+  const now =
+    performance.now();
+
+
+  const dt =
+    Math.min(
+      (now-lastTime)/1000,
+      .03
+    );
+
+
+  lastTime = now;
+
+
+  if(flying){
+
+    physicsStep(dt);
+
+    animatePitcher(
+      Math.min(
+        now % 650,
+        650
+      )
+    );
+
+  }
+
+
+  controls.update();
+
+  renderer.render(
+    scene,
+    camera
+  );
+
+}
+
+
+animate();
+
+
+/* =========================================================
+   リサイズ
+========================================================= */
+
+addEventListener(
+  "resize",
+  ()=>{
+
+    camera.aspect =
+      innerWidth /
+      innerHeight;
+
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(
+      innerWidth,
+      innerHeight
+    );
+
+  }
+);
+
 </script>
 
 </body>
